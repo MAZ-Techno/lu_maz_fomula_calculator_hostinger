@@ -62,12 +62,10 @@ jobs:
       - name: Replace repository content
         run: |
           rsync -av --delete \
-            --ignore-missing-args \
-            extracted/ ./ \
             --exclude ".git" \
             --exclude ".github/workflows/manual-zip-deploy.yml" \
             --exclude "uploaded" \
-          || [[ $? == 24 ]]
+            extracted/ ./
 
       # -------------------------------
       # 6️⃣ Commit & push
