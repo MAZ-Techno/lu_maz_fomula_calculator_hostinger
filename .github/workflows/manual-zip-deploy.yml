@@ -28,8 +28,7 @@ jobs:
         run: |
           zip -r repo-backup.zip . \
             -x ".git/*" \
-            -x "uploaded/*" \
-            -x ".github/*"
+            -x "uploaded/*" 
 
       - name: Upload repo backup artifact
         uses: actions/upload-artifact@v4
@@ -63,7 +62,7 @@ jobs:
         run: |
           rsync -av --delete extracted/ ./ \
             --exclude ".git" \
-            --exclude ".github" \
+            --exclude ".github/workflows/manual-zip-deploy.yml" \
             --exclude "uploaded"
 
       # -------------------------------
