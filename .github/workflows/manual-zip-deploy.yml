@@ -61,11 +61,25 @@ jobs:
       # -------------------------------
       - name: Replace repository content
         run: |
-          rsync -av --delete \
+          # First, remove existing files and directories (except protected ones)
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name '.git' \
+            ! -name '.github' \
+            ! -name 'uploaded' \
+            ! -name 'extracted' \
+            ! -name 'repo-backup.zip' \
+            -print0 | xargs -0 rm -rf
+          
+          # Then copy all files from extracted to root, preserving structure
+          # Using rsync without --delete to avoid "file vanished" errors
+          rsync -av \
             --exclude ".git" \
             --exclude ".github/workflows/manual-zip-deploy.yml" \
             --exclude "uploaded" \
             extracted/ ./
+          
+          # Clean up the extracted directory
+          rm -rf extracted
 
       # -------------------------------
       # 6️⃣ Commit & push
