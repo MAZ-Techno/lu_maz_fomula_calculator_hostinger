@@ -19,6 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          token: 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
           fetch-depth: 0
 
       # -------------------------------
