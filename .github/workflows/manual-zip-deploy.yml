@@ -1,0 +1,72 @@
+name: Manual ZIP Deploy & Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_name:
+        description: "Name of the uploaded ZIP file (example: upload.zip)"
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -------------------------------
+      # 1️⃣ ZIP current repository
+      # -------------------------------
+      - name: Zip current repository
+        run: |
+          zip -r repo-backup.zip . \
+            -x ".git/*" \
+            -x ".github/*"
+
+      - name: Upload repo backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-backup
+          path: repo-backup.zip
+          retention-days: 30
+
+      # -------------------------------
+      # 2️⃣ Download uploaded ZIP
+      # -------------------------------
+      - name: Download uploaded ZIP artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ github.event.inputs.zip_name }}
+          path: uploaded
+
+      # -------------------------------
+      # 3️⃣ Unzip uploaded file
+      # -------------------------------
+      - name: Unzip uploaded content
+        run: |
+          unzip uploaded/${{ github.event.inputs.zip_name }} -d extracted
+
+      # -------------------------------
+      # 4️⃣ Replace repo content
+      # -------------------------------
+      - name: Replace repository content
+        run: |
+          rsync -av --delete extracted/ ./ \
+            --exclude ".git" \
+            --exclude ".github"
+
+      # -------------------------------
+      # 5️⃣ Commit & push
+      # -------------------------------
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add .
+          git commit -m "Deploy content from uploaded ZIP" || echo "No changes to commit"
+          git push
