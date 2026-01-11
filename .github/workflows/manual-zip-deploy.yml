@@ -41,7 +41,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.inputs.zip_name }}
-          path: uploaded
+          path: |
+            uploaded/*.zip
+          retention-days: 30
 
       # -------------------------------
       # 3️⃣ Unzip uploaded file
