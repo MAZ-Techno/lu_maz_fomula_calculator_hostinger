@@ -1,10 +1,10 @@
-name: Manual ZIP Deploy & Backup
+name: Manual ZIP Deploy from Uploaded Folder
 
 on:
   workflow_dispatch:
     inputs:
-      zip_name:
-        description: "Name of the uploaded ZIP file (example: upload.zip)"
+      zip_file:
+        description: "ZIP filename inside uploaded/ folder (example: deploy.zip)"
         required: true
         type: string
 
@@ -13,18 +13,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # -------------------------------
+      # 1️⃣ Checkout repo
+      # -------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       # -------------------------------
-      # 1️⃣ ZIP current repository
+      # 2️⃣ Backup current repo
       # -------------------------------
       - name: Zip current repository
         run: |
           zip -r repo-backup.zip . \
             -x ".git/*" \
+            -x "uploaded/*" \
             -x ".github/*"
 
       - name: Upload repo backup artifact
@@ -35,34 +39,35 @@ jobs:
           retention-days: 30
 
       # -------------------------------
-      # 2️⃣ Download uploaded ZIP
+      # 3️⃣ Validate ZIP exists
       # -------------------------------
-      - name: Download uploaded ZIP artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ github.event.inputs.zip_name }}
-          path: |
-            uploaded/*.zip
-          retention-days: 30
-
-      # -------------------------------
-      # 3️⃣ Unzip uploaded file
-      # -------------------------------
-      - name: Unzip uploaded content
+      - name: Validate uploaded ZIP exists
         run: |
-          unzip uploaded/${{ github.event.inputs.zip_name }} -d extracted
+          if [ ! -f "uploaded/${{ github.event.inputs.zip_file }}" ]; then
+            echo "❌ ZIP file not found in uploaded/"
+            exit 1
+          fi
 
       # -------------------------------
-      # 4️⃣ Replace repo content
+      # 4️⃣ Unzip uploaded ZIP
+      # -------------------------------
+      - name: Unzip uploaded ZIP
+        run: |
+          mkdir extracted
+          unzip "uploaded/${{ github.event.inputs.zip_file }}" -d extracted
+
+      # -------------------------------
+      # 5️⃣ Replace repo content
       # -------------------------------
       - name: Replace repository content
         run: |
           rsync -av --delete extracted/ ./ \
             --exclude ".git" \
-            --exclude ".github"
+            --exclude ".github" \
+            --exclude "uploaded"
 
       # -------------------------------
-      # 5️⃣ Commit & push
+      # 6️⃣ Commit & push
       # -------------------------------
       - name: Commit and push changes
         run: |
@@ -70,5 +75,5 @@ jobs:
           git config user.email "github-actions@github.com"
 
           git add .
-          git commit -m "Deploy content from uploaded ZIP" || echo "No changes to commit"
+          git commit -m "Deploy from uploaded ZIP: ${{ github.event.inputs.zip_file }}" || echo "No changes to commit"
           git push
