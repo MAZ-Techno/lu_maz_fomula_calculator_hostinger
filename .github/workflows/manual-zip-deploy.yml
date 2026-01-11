@@ -61,6 +61,13 @@ jobs:
       # -------------------------------
       - name: Replace repository content
         run: |
+          # Backup lock files if they exist (they might not be in the ZIP)
+          mkdir -p .lock-backup
+          [ -f package-lock.json ] && cp package-lock.json .lock-backup/ || true
+          [ -f yarn.lock ] && cp yarn.lock .lock-backup/ || true
+          [ -f npm-shrinkwrap.json ] && cp npm-shrinkwrap.json .lock-backup/ || true
+          [ -f pnpm-lock.yaml ] && cp pnpm-lock.yaml .lock-backup/ || true
+          
           # First, remove existing files and directories (except protected ones)
           find . -mindepth 1 -maxdepth 1 \
             ! -name '.git' \
@@ -68,6 +75,7 @@ jobs:
             ! -name 'uploaded' \
             ! -name 'extracted' \
             ! -name 'repo-backup.zip' \
+            ! -name '.lock-backup' \
             -print0 | xargs -0 rm -rf
           
           # Then copy all files from extracted to root, preserving structure
@@ -78,8 +86,17 @@ jobs:
             --exclude "uploaded" \
             extracted/ ./
           
-          # Clean up the extracted directory
-          rm -rf extracted
+          # Restore lock files if they don't exist in the synced content
+          # This ensures lock files are preserved even if the ZIP doesn't contain them
+          if [ -f package.json ]; then
+            [ ! -f package-lock.json ] && [ -f .lock-backup/package-lock.json ] && cp .lock-backup/package-lock.json . && echo "✓ Restored package-lock.json" || true
+            [ ! -f yarn.lock ] && [ -f .lock-backup/yarn.lock ] && cp .lock-backup/yarn.lock . && echo "✓ Restored yarn.lock" || true
+            [ ! -f npm-shrinkwrap.json ] && [ -f .lock-backup/npm-shrinkwrap.json ] && cp .lock-backup/npm-shrinkwrap.json . && echo "✓ Restored npm-shrinkwrap.json" || true
+            [ ! -f pnpm-lock.yaml ] && [ -f .lock-backup/pnpm-lock.yaml ] && cp .lock-backup/pnpm-lock.yaml . && echo "✓ Restored pnpm-lock.yaml" || true
+          fi
+          
+          # Clean up backup directory and extracted directory
+          rm -rf .lock-backup extracted
 
       # -------------------------------
       # 6️⃣ Commit & push
