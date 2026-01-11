@@ -2,6 +2,11 @@ name: Manual ZIP Deploy from Uploaded Folder
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'uploaded/**'
+    branches:
+      - main
 
 jobs:
   deploy:
