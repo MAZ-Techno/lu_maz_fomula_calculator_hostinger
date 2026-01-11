@@ -2,11 +2,6 @@ name: Manual ZIP Deploy from Uploaded Folder
 
 on:
   workflow_dispatch:
-    inputs:
-      zip_file:
-        description: "ZIP filename inside uploaded/ folder (example: deploy.zip)"
-        required: true
-        type: string
 
 jobs:
   deploy:
@@ -27,26 +22,40 @@ jobs:
       # -------------------------------
       - name: Zip current repository
         run: |
-          zip -r repo-backup.zip . \
+          mkdir -p backup
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          zip -r "backup/repo-backup-${TIMESTAMP}.zip" . \
             -x ".git/*" \
-            -x "uploaded/*" 
+            -x "uploaded/*" \
+            -x "backup/*"
+          echo "✓ Backup created: backup/repo-backup-${TIMESTAMP}.zip"
 
       - name: Upload repo backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: repo-backup
-          path: repo-backup.zip
+          path: backup/*.zip
           retention-days: 30
 
       # -------------------------------
-      # 3️⃣ Validate ZIP exists
+      # 3️⃣ Find and validate ZIP file
       # -------------------------------
-      - name: Validate uploaded ZIP exists
+      - name: Find ZIP file in uploaded folder
+        id: find-zip
         run: |
-          if [ ! -f "uploaded/${{ github.event.inputs.zip_file }}" ]; then
-            echo "❌ ZIP file not found in uploaded/"
+          # Find the first .zip file in uploaded/ folder
+          ZIP_FILE=$(find uploaded -maxdepth 1 -name "*.zip" -type f | head -n 1)
+          
+          if [ -z "$ZIP_FILE" ]; then
+            echo "❌ No ZIP file found in uploaded/ folder"
             exit 1
           fi
+          
+          # Get just the filename without path
+          ZIP_FILENAME=$(basename "$ZIP_FILE")
+          echo "✓ Found ZIP file: $ZIP_FILENAME"
+          echo "zip_file=$ZIP_FILENAME" >> $GITHUB_OUTPUT
+          echo "zip_path=$ZIP_FILE" >> $GITHUB_OUTPUT
 
       # -------------------------------
       # 4️⃣ Unzip uploaded ZIP
@@ -54,7 +63,8 @@ jobs:
       - name: Unzip uploaded ZIP
         run: |
           mkdir extracted
-          unzip "uploaded/${{ github.event.inputs.zip_file }}" -d extracted
+          unzip "${{ steps.find-zip.outputs.zip_path }}" -d extracted
+          echo "✓ Extracted: ${{ steps.find-zip.outputs.zip_file }}"
 
       # -------------------------------
       # 5️⃣ Replace repo content
@@ -73,8 +83,8 @@ jobs:
             ! -name '.git' \
             ! -name '.github' \
             ! -name 'uploaded' \
+            ! -name 'backup' \
             ! -name 'extracted' \
-            ! -name 'repo-backup.zip' \
             ! -name '.lock-backup' \
             -print0 | xargs -0 rm -rf
           
@@ -143,5 +153,5 @@ jobs:
           git config user.email "github-actions@github.com"
 
           git add .
-          git commit -m "Deploy from uploaded ZIP: ${{ github.event.inputs.zip_file }}" || echo "No changes to commit"
+          git commit -m "Deploy from uploaded ZIP: ${{ steps.find-zip.outputs.zip_file }}" || echo "No changes to commit"
           git push
