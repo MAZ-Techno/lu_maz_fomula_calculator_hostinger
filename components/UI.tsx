@@ -66,7 +66,7 @@ export const Input: React.FC<InputProps> = ({ label, suffix, className = '', id,
 };
 
 // Result Display Component
-export const ResultDisplay: React.FC<{ label: string; value: string | number; message?: string; type?: 'neutral' | 'success' | 'warning' | 'danger' }> = ({ label, value, message, type = 'neutral' }) => {
+export const ResultDisplay: React.FC<{ label: string; value: string | number; message?: React.ReactNode; type?: 'neutral' | 'success' | 'warning' | 'danger' }> = ({ label, value, message, type = 'neutral' }) => {
   const typeColors = {
     neutral: "bg-slate-50 text-slate-900 border-slate-200",
     success: "bg-green-50 text-green-800 border-green-200",
