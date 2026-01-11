@@ -63,10 +63,10 @@ jobs:
         run: |
           # Backup lock files if they exist (they might not be in the ZIP)
           mkdir -p .lock-backup
-          [ -f package-lock.json ] && cp package-lock.json .lock-backup/ || true
-          [ -f yarn.lock ] && cp yarn.lock .lock-backup/ || true
-          [ -f npm-shrinkwrap.json ] && cp npm-shrinkwrap.json .lock-backup/ || true
-          [ -f pnpm-lock.yaml ] && cp pnpm-lock.yaml .lock-backup/ || true
+          [ -f package-lock.json ] && cp package-lock.json .lock-backup/ && echo "✓ Backed up package-lock.json" || true
+          [ -f yarn.lock ] && cp yarn.lock .lock-backup/ && echo "✓ Backed up yarn.lock" || true
+          [ -f npm-shrinkwrap.json ] && cp npm-shrinkwrap.json .lock-backup/ && echo "✓ Backed up npm-shrinkwrap.json" || true
+          [ -f pnpm-lock.yaml ] && cp pnpm-lock.yaml .lock-backup/ && echo "✓ Backed up pnpm-lock.yaml" || true
           
           # First, remove existing files and directories (except protected ones)
           find . -mindepth 1 -maxdepth 1 \
@@ -97,9 +97,45 @@ jobs:
           
           # Clean up backup directory and extracted directory
           rm -rf .lock-backup extracted
+          
+          # Verify lock files exist (for debugging)
+          echo "🔍 Checking for lock files after sync:"
+          [ -f package-lock.json ] && echo "  ✓ package-lock.json exists" || echo "  ✗ package-lock.json missing"
+          [ -f yarn.lock ] && echo "  ✓ yarn.lock exists" || echo "  ✗ yarn.lock missing"
+          [ -f npm-shrinkwrap.json ] && echo "  ✓ npm-shrinkwrap.json exists" || echo "  ✗ npm-shrinkwrap.json missing"
+          [ -f pnpm-lock.yaml ] && echo "  ✓ pnpm-lock.yaml exists" || echo "  ✗ pnpm-lock.yaml missing"
 
       # -------------------------------
-      # 6️⃣ Commit & push
+      # 6️⃣ Ensure lock file exists
+      # -------------------------------
+      - name: Setup Node.js (without cache if no lock file)
+        if: hashFiles('package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # Don't use cache to avoid error when lock file doesn't exist
+
+      - name: Generate lock file if missing
+        if: hashFiles('package.json') != ''
+        run: |
+          # Check if any lock file exists
+          if [ ! -f package-lock.json ] && [ ! -f yarn.lock ] && [ ! -f npm-shrinkwrap.json ] && [ ! -f pnpm-lock.yaml ]; then
+            echo "⚠️ No lock file found. Generating package-lock.json..."
+            npm install --package-lock-only
+            echo "✓ Generated package-lock.json"
+          else
+            echo "✓ Lock file already exists"
+          fi
+          
+          # Final verification
+          echo "🔍 Final lock file check:"
+          [ -f package-lock.json ] && echo "  ✓ package-lock.json exists" || echo "  ✗ package-lock.json missing"
+          [ -f yarn.lock ] && echo "  ✓ yarn.lock exists" || echo "  ✗ yarn.lock missing"
+          [ -f npm-shrinkwrap.json ] && echo "  ✓ npm-shrinkwrap.json exists" || echo "  ✗ npm-shrinkwrap.json missing"
+          [ -f pnpm-lock.yaml ] && echo "  ✓ pnpm-lock.yaml exists" || echo "  ✗ pnpm-lock.yaml missing"
+
+      # -------------------------------
+      # 7️⃣ Commit & push
       # -------------------------------
       - name: Commit and push changes
         run: |
